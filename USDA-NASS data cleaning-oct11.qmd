@@ -27,20 +27,105 @@ Sections of the document as it was originally presented in class have been comme
 
 Outline the approach taked to clean and organize the data.
 
-1.  Delate all the columns that only has NA value since it is useless, cannot provide useful information for analysis.
-2.  In the Value column, there are some data that aren't numbers, which is (D). They will be replaced with 0 first, then replaced by the average of the Value according to the type of data item they belong to.
+1. Delate all the colums that only hava NA. (code by Wright, Haviland)
 
 ```{r warning=FALSE, message=FALSE}
+#| label: read data - glimpse 
+#| warning: false
+#| message: false
+#| echo: false
+
+strawberry <- read_csv("strawberry.csv", col_names = TRUE)
+
+glimpse(strawberry)
+
+#| label: drop one-item columns
+#| echo: false
+
+## define function
+drop_one_value_col <- function(df){
+col_name <- NULL
+col_val <- NULL
+suppressWarnings({
+for(i in 1:dim(df)[2]){
+if((df |> distinct(df[,i]) |> count()) == 1){
+  col_name = c(col_name, colnames(df[i]))
+  col_val = c(col_val, df[1,i])  
+} }
+})
+
+if(is.null(col_name)){return("No Columns to drop")}else{
+   col_val = unlist(col_val)
+   attributes(col_val) = NULL
+   drp = data.frame(col_name, col_val)
+   return(drp)
+   }
+}
+
+str <- drop_one_value_col(strawberry)
+
+# str |> kable(caption = "Dropped Single-Value Columns: names and values")
+
+str <- str$col_name
+
+strawberry <- strawberry |> select(!all_of(str))
+
+
+
+## applying the function a second time 
+## tests the function when there aren't any 
+## one-value columns
+#####  drop_one_value_col(strawberry)
+
+```
+
+2. In the Value column, there are some data that aren't numbers, which is (D). They will be replaced with 0 first, then replaced by the average of the Value according to the type of data item they belong to. Since, I want to know the state and it's average value in order to graph, so I creat another new dataframe to show the state and it's average value
+
+```{r warning=FALSE, message=FALSE}
+library(knitr)  
+library(kableExtra)
+library(tidyverse)
+library(stringr)
+library(esquisse)
+
 straw<-strawberry
 straw$Value <- ifelse(straw$Value == "(D)", 0, straw$Value)
 result <- straw %>%
   mutate(Value = as.numeric(Value)) %>%
   group_by(`Data Item`) %>%
-  summarize(total_value = round(mean(Value, na.rm = TRUE)))
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
 
 straw <- straw %>%
   left_join(result, by = 'Data Item') %>%
-  mutate(Value = ifelse(Value == "0", total_value, Value))
+  mutate(Value = ifelse(Value == "0", average_value, Value))
+
+straw <- straw %>% select(-average_value)
+
+
+result_state_mean <- straw %>%
+  mutate(Value = as.numeric(Value)) %>%
+  group_by(`State`) %>%
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
+```
+3. I plot a simple graph according to the data item and the average value they have, since the name of the data item is too long, so I do not specific describe which points are which data item.
+Also, I am interesting in the average value classify by the states and want to see which states has the highest average value.
+
+```{r warning=FALSE, message=FALSE}
+ggplot(result) +
+  aes(x = `Data Item`, y = average_value, colour = `Data Item`) +
+  geom_point(shape = "circle", size = 1.5) +
+  scale_color_hue(direction = 1) +
+  theme_classic()+theme(
+        axis.text=element_blank(),
+        axis.ticks = element_blank()
+        )+
+  theme(legend.position = "none")+ggtitle("Data Item and its Average Value")
+
+ggplot(result_state_mean, aes(x = State, y = average_value)) +
+  geom_col(fill = ifelse(result_state_mean$State == "MASSACHUSETTS", "red", "forestgreen")) +
+  theme_classic() +
+  labs(title = "State and Average Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
 
@@ -66,9 +151,31 @@ In their handbook ["An introduction to data cleaning with R" by Edwin de Jonge a
 
 -   Initial questions about strawberries, the data, and about the work you are undertaking. Write these before you begin working.
 
+I am Looking about the strawberry and it's average value according to the state
+
 ## The data
 
 Describe the source and original condition of the data: organization, problems with the data that needed to be addressed and so on. Cite data sources.
+
+The data is come from the strwb_survey_mkt, to look at the question I am interested in, I need to know the average value that is classify by the state. Since there is lots of (D) in the value, and it will occurs error if they are not number, so I turn them into 0 and calculate out the mean value by its state.
+
+
+```{r warning=FALSE, message=FALSE}
+strwb_survey_mkt$Value <- ifelse(strwb_survey_mkt$State == "(D)", 0, strwb_survey_mkt$Value)
+result_state <- strwb_survey_mkt %>%
+  mutate(Value = as.numeric(Value)) %>%
+  group_by(`State`) %>%
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
+
+ggplot(result_state) +
+  aes(x = State, y = average_value) +
+  geom_col(fill = "#112446") +
+  theme_classic()+labs(title = "State and Average Value according to the strwb_survey_mkt") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
 
 The data set for this assignment has been selected from: [USDA_NASS](https://quickstats.nass.usda.gov) <br> The data have been stored on NASS here: [USDA_NASS_strawb_2023SEP19](https://quickstats.nass.usda.gov/results/45FBC825-B104-38E2-9802-839F5F3C7036)
 
