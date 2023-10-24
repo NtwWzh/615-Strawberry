@@ -173,7 +173,7 @@ ggplot(result_state) +
   theme_classic()+labs(title = "State and Average Value according to the strwb_survey_mkt") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
-
+From the graph, we can see that OREGON has the highest value. I do some research about OREGON, and find out that OREGON has a long mild spring and has fertile alluvial soil, that's the reason why it has the highest strawberry value.
 
 
 
