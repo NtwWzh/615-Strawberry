@@ -1,181 +1,11 @@
 ---
 title: "Stawberries: exploratory data analysis"
-author: MA615
+author: MA615 TSZWAI NG
 date: 2023 Oct 11
 format: html
+embed-resources: true
 engine: knitr
 ---
-
-# Assignment
-
-Using our class discussions and this document as a starting point, produce an EDA report. The report should describe the data itself so that readers understand the data sources used in the report and how you cleaned and organized the data for analysis.
-
-The sections below suggest how the report might be organized. The report should be succinct, communicating the information that you believe will be helpful to someone doing a fuller analysis of the data or using the data for model building. Implementation details should be included in commentary that is included in code.
-
-Sections of the document as it was originally presented in class have been commented so that you can see them in the code.
-
-<hr>
-
-<hr>
-
-## Data acquisition and assessment
-
--   Data sources\
--   Assumptions and motivations
-
-## Data cleaning and organization
-
-Outline the approach taked to clean and organize the data.
-
-1. Delate all the colums that only hava NA. (code by Wright, Haviland)
-
-```{r warning=FALSE, message=FALSE}
-#| label: read data - glimpse 
-#| warning: false
-#| message: false
-#| echo: false
-
-strawberry <- read_csv("strawberry.csv", col_names = TRUE)
-
-glimpse(strawberry)
-
-#| label: drop one-item columns
-#| echo: false
-
-## define function
-drop_one_value_col <- function(df){
-col_name <- NULL
-col_val <- NULL
-suppressWarnings({
-for(i in 1:dim(df)[2]){
-if((df |> distinct(df[,i]) |> count()) == 1){
-  col_name = c(col_name, colnames(df[i]))
-  col_val = c(col_val, df[1,i])  
-} }
-})
-
-if(is.null(col_name)){return("No Columns to drop")}else{
-   col_val = unlist(col_val)
-   attributes(col_val) = NULL
-   drp = data.frame(col_name, col_val)
-   return(drp)
-   }
-}
-
-str <- drop_one_value_col(strawberry)
-
-# str |> kable(caption = "Dropped Single-Value Columns: names and values")
-
-str <- str$col_name
-
-strawberry <- strawberry |> select(!all_of(str))
-
-
-
-## applying the function a second time 
-## tests the function when there aren't any 
-## one-value columns
-#####  drop_one_value_col(strawberry)
-
-```
-
-2. In the Value column, there are some data that aren't numbers, which is (D). They will be replaced with 0 first, then replaced by the average of the Value according to the type of data item they belong to. Since, I want to know the state and it's average value in order to graph, so I creat another new dataframe to show the state and it's average value
-
-```{r warning=FALSE, message=FALSE}
-library(knitr)  
-library(kableExtra)
-library(tidyverse)
-library(stringr)
-library(esquisse)
-
-straw<-strawberry
-straw$Value <- ifelse(straw$Value == "(D)", 0, straw$Value)
-result <- straw %>%
-  mutate(Value = as.numeric(Value)) %>%
-  group_by(`Data Item`) %>%
-  summarize(average_value = round(mean(Value, na.rm = TRUE)))
-
-straw <- straw %>%
-  left_join(result, by = 'Data Item') %>%
-  mutate(Value = ifelse(Value == "0", average_value, Value))
-
-straw <- straw %>% select(-average_value)
-
-
-result_state_mean <- straw %>%
-  mutate(Value = as.numeric(Value)) %>%
-  group_by(`State`) %>%
-  summarize(average_value = round(mean(Value, na.rm = TRUE)))
-```
-3. I plot a simple graph according to the data item and the average value they have, since the name of the data item is too long, so I do not specific describe which points are which data item.
-Also, I am interesting in the average value classify by the states and want to see which states has the highest average value.
-
-```{r warning=FALSE, message=FALSE}
-ggplot(result) +
-  aes(x = `Data Item`, y = average_value, colour = `Data Item`) +
-  geom_point(shape = "circle", size = 1.5) +
-  scale_color_hue(direction = 1) +
-  theme_classic()+theme(
-        axis.text=element_blank(),
-        axis.ticks = element_blank()
-        )+
-  theme(legend.position = "none")+ggtitle("Data Item and its Average Value")
-
-ggplot(result_state_mean, aes(x = State, y = average_value)) +
-  geom_col(fill = ifelse(result_state_mean$State == "MASSACHUSETTS", "red", "forestgreen")) +
-  theme_classic() +
-  labs(title = "State and Average Value") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-## References
-
-### Material about strawberries
-
-[WHO says strawberries may not be so safe for you--2017March16](https://med.news.am/eng/news/13621/who-says-strawberries-may-not-be-so-safe-for-you.html)
-
-[Pesticides + poison gases = cheap, year-round strawberries 2019March20](https://www.ewg.org/foodnews/strawberries.php)
-
-[Multistate Outbreak of Hepatitis A Virus Infections Linked to Fresh Organic Strawberries-2022March5](https://www.cdc.gov/hepatitis/outbreaks/2022/hav-contaminated-food/index.htm)
-
-[Strawberry makes list of cancer-fighting foods-2023May31](https://issuu.com/mechlocal/docs/053123_mech_asf/s/25386339)
-
-### Technical references
-
-In their handbook ["An introduction to data cleaning with R" by Edwin de Jonge and Mark van der Loo](https://cran.r-project.org/doc/contrib/de_Jonge+van_der_Loo-Introduction_to_data_cleaning_with_R.pdf), de Jonge and van der Loo go into detail about specific data cleaning isssues and how to handle them in R.
-
-["Problems, Methods, and Challenges in Comprehensive Data Cleansing" by Heiko Müller and Johann-Christoph Freytag](https://www.researchgate.net/profile/Heiko-Mueller/publication/228929938_Problems_methods_and_challenges_in_comprehensive_data_cleansing/links/09e415101b58541e2c000000/Problems-methods-and-challenges-in-comprehensive-data-cleansing.pdf) is a good companion to the de Jonge and van der Loo handbook, offering additional insights.
-
-## Initial questions
-
--   Initial questions about strawberries, the data, and about the work you are undertaking. Write these before you begin working.
-
-I am Looking about the strawberry and it's average value according to the state
-
-## The data
-
-Describe the source and original condition of the data: organization, problems with the data that needed to be addressed and so on. Cite data sources.
-
-The data is come from the strwb_survey_mkt, to look at the question I am interested in, I need to know the average value that is classify by the state. Since there is lots of (D) in the value, and it will occurs error if they are not number, so I turn them into 0 and calculate out the mean value by its state.
-
-
-```{r warning=FALSE, message=FALSE}
-strwb_survey_mkt$Value <- ifelse(strwb_survey_mkt$State == "(D)", 0, strwb_survey_mkt$Value)
-result_state <- strwb_survey_mkt %>%
-  mutate(Value = as.numeric(Value)) %>%
-  group_by(`State`) %>%
-  summarize(average_value = round(mean(Value, na.rm = TRUE)))
-
-ggplot(result_state) +
-  aes(x = State, y = average_value) +
-  geom_col(fill = "#112446") +
-  theme_classic()+labs(title = "State and Average Value according to the strwb_survey_mkt") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-From the graph, we can see that OREGON has the highest value. I do some research about OREGON, and find out that OREGON has a long mild spring and has fertile alluvial soil, that's the reason why it has the highest strawberry value.
-
-
 
 The data set for this assignment has been selected from: [USDA_NASS](https://quickstats.nass.usda.gov) <br> The data have been stored on NASS here: [USDA_NASS_strawb_2023SEP19](https://quickstats.nass.usda.gov/results/45FBC825-B104-38E2-9802-839F5F3C7036)
 
@@ -208,8 +38,6 @@ library(stringr)
 #| echo: false
 
 strawberry <- read_csv("strawberry.csv", col_names = TRUE)
-
-glimpse(strawberry)
 ```
 
 <!-- Remove columns with a single value in all columns -->
@@ -261,7 +89,7 @@ strawberry <- strawberry |> select(!all_of(str))
 #| label: glimpse of strawberry data
 #| echo: false
 
-glimpse(strawberry)
+#glimpse(strawberry)
 
 ```
 
@@ -1050,62 +878,216 @@ strwb_survey_mkt <- strwb_survey_mkt |> select(all_of(mkt1))
 
 ```
 
+
+# Assignment
+
+Using our class discussions and this document as a starting point, produce an EDA report. The report should describe the data itself so that readers understand the data sources used in the report and how you cleaned and organized the data for analysis.
+
+The sections below suggest how the report might be organized. The report should be succinct, communicating the information that you believe will be helpful to someone doing a fuller analysis of the data or using the data for model building. Implementation details should be included in commentary that is included in code.
+
+Sections of the document as it was originally presented in class have been commented so that you can see them in the code.
+
+<hr>
+
+<hr>
+
+## Data acquisition and assessment
+
+-   Data sources\
+-   Assumptions and motivations
+
+## Data cleaning and organization
+
+Outline the approach taked to clean and organize the data.
+
+1. Delate all the colums that only hava NA. (code by Wright, Haviland)
+
+<!-- Delate all the colums. -->
+
+```{r warning=FALSE, message=FALSE,echo=FALSE}
+
+library(knitr)  
+library(kableExtra)
+library(tidyverse)
+library(stringr)
+library(esquisse)
+
+strawberry <- read_csv("strawberry.csv", col_names = TRUE)
+
+#glimpse(strawberry)
+
+## define function
+drop_one_value_col <- function(df){
+col_name <- NULL
+col_val <- NULL
+suppressWarnings({
+for(i in 1:dim(df)[2]){
+if((df |> distinct(df[,i]) |> count()) == 1){
+  col_name = c(col_name, colnames(df[i]))
+  col_val = c(col_val, df[1,i])  
+} }
+})
+
+if(is.null(col_name)){return("No Columns to drop")}else{
+   col_val = unlist(col_val)
+   attributes(col_val) = NULL
+   drp = data.frame(col_name, col_val)
+   return(drp)
+   }
+}
+
+str <- drop_one_value_col(strawberry)
+
+# str |> kable(caption = "Dropped Single-Value Columns: names and values")
+
+str <- str$col_name
+
+strawberry <- strawberry |> select(!all_of(str))
+
+
+
+## applying the function a second time 
+## tests the function when there aren't any 
+## one-value columns
+#####  drop_one_value_col(strawberry)
+
+```
+
+
+2. In the Value column, there are some data that aren't numbers, which is (D). They will be replaced with 0 first, then replaced by the average of the Value according to the type of data item they belong to. Since, I want to know the state and it's average value in order to graph, so I creat another new dataframe to show the state and it's average value
+
+```{r warning=FALSE, message=FALSE,echo=FALSE}
+
+straw<-strawberry
+straw$Value <- ifelse(straw$Value == "(D)", 0, straw$Value)
+result <- straw %>%
+  mutate(Value = as.numeric(Value)) %>%
+  group_by(`Data Item`) %>%
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
+
+straw <- straw %>%
+  left_join(result, by = 'Data Item') %>%
+  mutate(Value = ifelse(Value == "0", average_value, Value))
+
+straw <- straw %>% select(-average_value)
+
+
+result_state_mean <- straw %>%
+  mutate(Value = as.numeric(Value)) %>%
+  group_by(`State`) %>%
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
+```
+3. I plot a simple graph according to the data item and the average value they have, since the name of the data item is too long, so I do not specific describe which points are which data item.
+Also, I am interesting in the average value classify by the states and want to see which states has the highest average value.
+
+```{r warning=FALSE, message=FALSE,echo=FALSE}
+ggplot(result) +
+  aes(x = `Data Item`, y = average_value, colour = `Data Item`) +
+  geom_point(shape = "circle", size = 1.5) +
+  scale_color_hue(direction = 1) +
+  theme_classic()+theme(
+        axis.text=element_blank(),
+        axis.ticks = element_blank()
+        )+
+  theme(legend.position = "none")+ggtitle("Data Item and its Average Value")
+
+ggplot(result_state_mean, aes(x = State, y = average_value)) +
+  geom_col(fill = ifelse(result_state_mean$State == "MASSACHUSETTS", "red", "forestgreen")) +
+  theme_classic() +
+  labs(title = "State and Average Value") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+## Initial questions
+
+-   Initial questions about strawberries, the data, and about the work you are undertaking. Write these before you begin working.
+
+I am Looking about the strawberry and it's average value according to the state
+
+## The data
+
+Describe the source and original condition of the data: organization, problems with the data that needed to be addressed and so on. Cite data sources.
+
+The data is come from the strwb_survey_mkt, to look at the question I am interested in, I need to know the average value that is classify by the state. Since there is lots of (D) in the value, and it will occurs error if they are not number, so I turn them into 0 and calculate out the mean value by its state.
+
+
+
+```{r warning=FALSE, message=FALSE,echo=FALSE}
+strwb_survey_mkt$Value <- ifelse(strwb_survey_mkt$State == "(D)", 0, strwb_survey_mkt$Value)
+result_state <- strwb_survey_mkt %>%
+  mutate(Value = as.numeric(Value)) %>%
+  group_by(`State`) %>%
+  summarize(average_value = round(mean(Value, na.rm = TRUE)))
+
+ggplot(result_state) +
+  aes(x = State, y = average_value) +
+  geom_col(fill = "#112446") +
+  theme_classic()+labs(title = "State and Average Value according to the strwb_survey_mkt") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+From the graph, we can see that OREGON has the highest value. I do some research about OREGON, and find out that OREGON has a long mild spring and has fertile alluvial soil, that's the reason why it has the highest strawberry value.
+
+
 <p style="page-break-before: always">
 
 </p>
 
-### These references have been left in the document to help while you are writing. Cite those you use and drop the rest from the final document.
+<!-- ### These references have been left in the document to help while you are writing. Cite those you use and drop the rest from the final document. -->
 
-[NASS help](https://quickstats.nass.usda.gov/tutorials)
+<!-- [NASS help](https://quickstats.nass.usda.gov/tutorials) -->
 
-[Quick Stats Glossary](https://quickstats.nass.usda.gov/src/glossary.pdf)
+<!-- [Quick Stats Glossary](https://quickstats.nass.usda.gov/src/glossary.pdf) -->
 
-[Quick Stats Column Definitions](https://quickstats.nass.usda.gov/param_define)
+<!-- [Quick Stats Column Definitions](https://quickstats.nass.usda.gov/param_define) -->
 
-[stats by subject](https://www.nass.usda.gov/Statistics_by_Subject/index.php?sector=CROPS)
+<!-- [stats by subject](https://www.nass.usda.gov/Statistics_by_Subject/index.php?sector=CROPS) -->
 
-for EPA number lookup [epa numbers](https://archive.epa.gov/pesticides/chemicalsearch/chemical/foia/web/html/128810.html)
+<!-- for EPA number lookup [epa numbers](https://archive.epa.gov/pesticides/chemicalsearch/chemical/foia/web/html/128810.html) -->
 
-[Active Pesticide Product Registration Informational Listing](https://ordspub.epa.gov/ords/pesticides/f?p=APPRIL_PUBLIC:2::::::)
+<!-- [Active Pesticide Product Registration Informational Listing](https://ordspub.epa.gov/ords/pesticides/f?p=APPRIL_PUBLIC:2::::::) -->
 
-pc number input [pesticide chemical search](https://ordspub.epa.gov/ords/pesticides/f?p=chemicalsearch:1)
+<!-- pc number input [pesticide chemical search](https://ordspub.epa.gov/ords/pesticides/f?p=chemicalsearch:1) -->
 
-[toxic chemical dashboard](https://comptox.epa.gov/dashboard/)
+<!-- [toxic chemical dashboard](https://comptox.epa.gov/dashboard/) -->
 
-[ACToR -- Aggregated Computational Toxicology Resource](https://cfpub.epa.gov/si/si_public_record_report.cfm?Lab=NCCT&dirEntryId=209598)
+<!-- [ACToR -- Aggregated Computational Toxicology Resource](https://cfpub.epa.gov/si/si_public_record_report.cfm?Lab=NCCT&dirEntryId=209598) -->
 
-[comptox dashboard](https://comptox.epa.gov/dashboard/chemical/details/DTXSID0020315)
+<!-- [comptox dashboard](https://comptox.epa.gov/dashboard/chemical/details/DTXSID0020315) -->
 
-[pubChem](https://pubchem.ncbi.nlm.nih.gov/)
+<!-- [pubChem](https://pubchem.ncbi.nlm.nih.gov/) -->
 
-The EPA PC (Pesticide Chemical) Code is a unique chemical code number assigned by the EPA to a particular pesticide active ingredient, inert ingredient or mixture of active ingredients.
+<!-- The EPA PC (Pesticide Chemical) Code is a unique chemical code number assigned by the EPA to a particular pesticide active ingredient, inert ingredient or mixture of active ingredients. -->
 
-## Investigating toxic pesticides
+<!-- ## Investigating toxic pesticides -->
 
-[start here with chem PC code](https://ordspub.epa.gov/ords/pesticides/f?p=chemicalsearch:1)
+<!-- [start here with chem PC code](https://ordspub.epa.gov/ords/pesticides/f?p=chemicalsearch:1) -->
 
-[step 2](https://ordspub.epa.gov/ords/pesticides/f?p=113:1::::RP,17,1::) to get label (with warnings) for products using the chemical
+<!-- [step 2](https://ordspub.epa.gov/ords/pesticides/f?p=113:1::::RP,17,1::) to get label (with warnings) for products using the chemical -->
 
-[International Chemical safety cards](https://www.ilo.org/dyn/icsc/showcard.home)
+<!-- [International Chemical safety cards](https://www.ilo.org/dyn/icsc/showcard.home) -->
 
-[Pesticide Product and Label System](https://ordspub.epa.gov/ords/pesticides/f?p=113:1::::RP,17,1::)
+<!-- [Pesticide Product and Label System](https://ordspub.epa.gov/ords/pesticides/f?p=113:1::::RP,17,1::) -->
 
-[Search by Chemical](https://ordspub.epa.gov/ords/pesticides/f?p=113:17::::::)
+<!-- [Search by Chemical](https://ordspub.epa.gov/ords/pesticides/f?p=113:17::::::) -->
 
-[CompTox Chemicals Dashboard](https://comptox.epa.gov/dashboard/)
+<!-- [CompTox Chemicals Dashboard](https://comptox.epa.gov/dashboard/) -->
 
-[Active Pesticide Product Registration Informational Listing](https://ordspub.epa.gov/ords/pesticides/f?p=APPRIL_PUBLIC:2::::::)
+<!-- [Active Pesticide Product Registration Informational Listing](https://ordspub.epa.gov/ords/pesticides/f?p=APPRIL_PUBLIC:2::::::) -->
 
-[OSHA chemical database](https://www.osha.gov/chemicaldata)
+<!-- [OSHA chemical database](https://www.osha.gov/chemicaldata) -->
 
-[Pesticide Ingredients](http://npic.orst.edu/ingred/)
+<!-- [Pesticide Ingredients](http://npic.orst.edu/ingred/) -->
 
-[NPIC Product Research Online (NPRO)](http://npic.orst.edu/NPRO/)
+<!-- [NPIC Product Research Online (NPRO)](http://npic.orst.edu/NPRO/) -->
 
-[Databases for Chemical Information](http://npic.orst.edu/ingred/cheminfo.html)
+<!-- [Databases for Chemical Information](http://npic.orst.edu/ingred/cheminfo.html) -->
 
-[Pesticide Active Ingredients](http://npic.orst.edu/ingred/active.html)
+<!-- [Pesticide Active Ingredients](http://npic.orst.edu/ingred/active.html) -->
 
-[TSCA Chemical Substance Inventory](https://www.epa.gov/tsca-inventory)
+<!-- [TSCA Chemical Substance Inventory](https://www.epa.gov/tsca-inventory) -->
 
-[glyphosate](https://ordspub.epa.gov/ords/pesticides/f?p=CHEMICALSEARCH:3::::1,3,31,7,12,25:P3_XCHEMICAL_ID:2478)
+<!-- [glyphosate](https://ordspub.epa.gov/ords/pesticides/f?p=CHEMICALSEARCH:3::::1,3,31,7,12,25:P3_XCHEMICAL_ID:2478) -->
